@@ -191,6 +191,13 @@ dat.5 <- dat.5 %>%
   mutate(fb.pass.exp=SOCIAL3_1-1, yt.pass.exp=SOCIAL3_2-1, tw.pass.exp=SOCIAL3_3-1,
          ig.pass.exp=SOCIAL3_4-1)
 
+#Create index of Social Media Use
+dat.4 <- dat.4 %>%
+  mutate(sm.ind_W4=fb.use5_W4+tw.use5_W4+ig.use5_W4+yt.use5_W4)
+
+dat.5 <- dat.5 %>%
+  mutate(sm.ind=fb.use5+tw.use5+ig.use5+yt.use5)
+
 # Quick Panel analysis
 ##Adjust variable endings
 dat.4 <- dat.4 %>%
@@ -208,7 +215,7 @@ dat.p <- dat.4 %>%
   pivot_longer(-CaseId, names_to = c(".value", "wave"), names_sep="_W") %>%
   select(CaseId, wave, poltol3, fb.use5, yt.use5, tw.use5, ig.use5, civil.ind, ppol.ind, interest,
          fb.pass.exp, yt.pass.exp, tw.pass.exp, ig.pass.exp, fb.use.dummy, yt.use.dummy, tw.use.dummy,
-         ig.use.dummy)
+         ig.use.dummy, sm.ind)
 
 dat.p<-dat.p[dat.p$wave %in% c(1:2),]
 
@@ -219,10 +226,12 @@ foreign::write.dta(dat.p.out, file="Panel Data Export to Stata.dta")
 
 ##Run the analyses
 
-m.face<-plm(formula = poltol3~fb.use5+fb.use.dummy+interest+fb.pass.exp+civil.ind+ppol.ind,data=dat.p, model='within', index='CaseId', effect='individual')
-m.yt<-plm(formula = poltol3~yt.use5+interest+yt.pass.exp+civil.ind+ppol.ind, data=dat.p, model='within', index='CaseId', type='individual')
-m.twit<-plm(formula = poltol3~tw.use5+interest+tw.pass.exp+civil.ind+ppol.ind, data=dat.p, model='within', index='CaseId', type='individual')
-m.insta<-plm(formula = poltol3~ig.use5+interest+ig.pass.exp+civil.ind+ppol.ind, data=dat.p, model='within', index='CaseId', type='individual')
+m.face<-plm(formula = poltol3~fb.use5+interest+fb.pass.exp, data=dat.p, model='within', index='CaseId', effect='individual')
+m.yt<-plm(formula = poltol3~yt.use5+interest+yt.pass.exp, data=dat.p, model='within', index='CaseId', type='individual')
+m.twit<-plm(formula = poltol3~tw.use5+interest+tw.pass.exp, data=dat.p, model='within', index='CaseId', type='individual')
+m.insta<-plm(formula = poltol3~ig.use5+interest+ig.pass.exp, data=dat.p, model='within', index='CaseId', type='individual')
+m.all<-plm(formula = poltol3~sm.ind+interest, data=dat.p, model='within', index='CaseId', type='individual')
+
 
 # Some other quick cleaning/Analysis
 dat.5 <- dat.5 %>%
@@ -312,6 +321,36 @@ t.test(dat.5$poltol6_W2[dat.5$tw.use5_W2>0], dat.5$poltol6_W2[dat.5$yt.use5_W2>0
 t.test(dat.5$poltol6_W2[dat.5$tw.use5_W2>0], dat.5$poltol6_W2[dat.5$ig.use5_W2>0])
 
 t.test(dat.5$poltol6_W2[dat.5$ig.use5_W2>0], dat.5$poltol6_W2[dat.5$yt.use5_W2>0])
+
+# Look at SM Increasers
+dat.w <- dat.4 %>%
+  full_join(dat.5, by='CaseId')
+
+dat.w <- dat.w %>%
+  mutate(poltol3.diff=poltol3_W2-poltol3_W1, fb.diff=fb.use5_W2-fb.use5_W1, ig.diff=ig.use5_W2-ig.use5_W1,
+         tw.diff=tw.use5_W2-tw.use5_W1, yt.diff=yt.use5_W2-yt.use5_W1)
+
+dat.w$fb.inc<-ifelse(dat.w$fb.diff>0, dat.w$fb.diff, 0)
+dat.w$fb.dec<-ifelse(dat.w$fb.diff<0, abs(dat.w$fb.diff), 0)
+dat.w$ig.inc<-ifelse(dat.w$ig.diff>0, dat.w$ig.diff, 0)
+dat.w$ig.dec<-ifelse(dat.w$ig.diff<0, abs(dat.w$ig.diff), 0)
+dat.w$tw.inc<-ifelse(dat.w$tw.diff>0, dat.w$tw.diff, 0)
+dat.w$tw.dec<-ifelse(dat.w$tw.diff<0, abs(dat.w$tw.diff), 0)
+dat.w$yt.inc<-ifelse(dat.w$yt.diff>0, dat.w$yt.diff, 0)
+dat.w$yt.dec<-ifelse(dat.w$yt.diff<0, abs(dat.w$yt.diff), 0)
+
+lm.fb.inc<-lm(poltol3.diff~fb.inc+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.ig.inc<-lm(poltol3.diff~ig.inc+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.tw.inc<-lm(poltol3.diff~tw.inc+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.yt.inc<-lm(poltol3.diff~yt.inc+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+
+lm.fb.dec<-lm(poltol3.diff~fb.dec+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.ig.dec<-lm(poltol3.diff~ig.dec+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.tw.dec<-lm(poltol3.diff~tw.dec+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+lm.yt.dec<-lm(poltol3.diff~yt.dec+white_W2+male_W2+AGE7_W2+EDUC4_W2+INCOME_W2+party3_W2, data=dat.w)
+
+
+
 
 
 
